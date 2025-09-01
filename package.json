@@ -1,6 +1,6 @@
 {
   "name": "dynamic-local-ip-updater",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A service that automatically updates a Cloudflare DNS record with your local machine's IP address",
   "main": "dist/index.js",
   "type": "commonjs",
