@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-import { EnvSchema } from './schema';
+import { EnvSchema } from '@/config/schema';
 
 process.env.DOTENV_CONFIG_QUIET = 'true';
 config();
@@ -18,6 +18,4 @@ export const {
   COOLDOWN_PERIOD,
 } = env;
 
-// Export the hardcoded data file path
-export { DATA_FILE } from './schema';
-export { EnvSchema } from './schema';
+export { DATA_FILE, EnvSchema } from '@/config/schema';

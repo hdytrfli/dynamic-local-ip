@@ -13,3 +13,6 @@ Dockerfile
 .gitignore
 CHANGELOG.md
 LICENSE
+src/__tests__
+coverage
+.biomelogs
