@@ -70,8 +70,7 @@ docker run -d \
   -e HOMEPAGE_URL=https://your-homepage.com \
   -e MAX_ATTEMPTS=3 \
   -e COOLDOWN_PERIOD=900000 \
-  -e DATA_FILE=data.json \
-  -v /path/to/data.json:/app/data.json \
+  -v ./data:/app/data \
   ghcr.io/hdytrfli/dynamic-local-ip:latest
 ```
 
@@ -83,20 +82,22 @@ docker-compose up -d
 
 The docker-compose setup includes:
 - Predefined container name (`dynamic-local-ip`)
-- Volume mount for data persistence
+- Volume mount for data persistence (`./data` directory mapped to `/app/data` in container)
 - All required environment variables with example values
 - Automatic restart policy
 
 Before running with docker-compose:
 1. Edit `docker-compose.yml` with your actual values
-2. Run with docker-compose:
+2. Create a `data` directory for persistence:
+   ```bash
+   mkdir data
+   ```
+3. Run with docker-compose:
    ```bash
    docker-compose up -d
    ```
 
-The data will be persisted in `data.json` which is mounted as a volume.
-
-Note: The pre-built Docker image is hosted on GitHub Container Registry and can be pulled directly without building from source.
+The data will be persisted in `cache.json` file inside the `data` directory which is mounted as a volume.
 
 ## Configuration
 
@@ -113,7 +114,6 @@ The service can be configured using environment variables:
 | HOMEPAGE_URL | Homepage URL for notifications | Yes | - |
 | MAX_ATTEMPTS | Max retry attempts | No | 3 |
 | COOLDOWN_PERIOD | Cooldown period in ms | No | 900000 (15 min) |
-| DATA_FILE | Data persistence file | No | data.json |
 
 ## Development Workflow
 
@@ -166,7 +166,7 @@ The service uses [ntfy.sh](https://ntfy.sh) for notifications. You can modify th
 
 ## Data Persistence
 
-The service stores state in `data.json` to track:
+The service stores state in `cache.json` to track:
 - Current IP address
 - Last update time
 - Error status and count

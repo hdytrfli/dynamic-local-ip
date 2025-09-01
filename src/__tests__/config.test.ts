@@ -55,6 +55,5 @@ describe('Configuration Validation', () => {
     // Optional fields should have default values
     expect(Number(result.MAX_ATTEMPTS)).toBe(3);
     expect(Number(result.COOLDOWN_PERIOD)).toBe(15 * 60 * 1000);
-    expect(result.DATA_FILE).toBe('ip_updater_data.json');
   });
 });

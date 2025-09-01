@@ -23,6 +23,7 @@ export const EnvSchema = z.object({
     .default(String(15 * 60 * 1000))
     .transform(Number)
     .pipe(z.number().min(1)),
-
-  DATA_FILE: z.string().optional().default('ip_updater_data.json'),
 });
+
+// Hardcoded data file path
+export const DATA_FILE = 'cache.json';

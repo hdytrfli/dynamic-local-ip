@@ -25,7 +25,6 @@ vi.mock('@/config', async () => {
     CLOUDFLARE_DNS_RECORD_ID: 'test-record-id',
     NTFY_TOPIC: 'test-topic',
     HOMEPAGE_URL: 'https://test.example.com',
-    DATA_FILE: 'test-data.json',
   };
 });
 
@@ -105,7 +104,7 @@ describe('Data Utility', () => {
 
       await writeData(testData);
       expect(fs.writeFile).toHaveBeenCalledWith(
-        'test-data.json',
+        'cache.json',
         JSON.stringify(testData, null, 2)
       );
     });

@@ -16,7 +16,8 @@ export const {
   HOMEPAGE_URL,
   MAX_ATTEMPTS,
   COOLDOWN_PERIOD,
-  DATA_FILE,
 } = env;
 
+// Export the hardcoded data file path
+export { DATA_FILE } from './schema';
 export { EnvSchema } from './schema';
