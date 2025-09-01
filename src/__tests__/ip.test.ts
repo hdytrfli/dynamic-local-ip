@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process';
+import { networkInterfaces } from 'node:os';
 import { logger } from '@/libs/logger';
 import { getLocalIP } from '@/libs/ip';
 import { IPDetectionError } from '@/libs/exceptions';
@@ -27,10 +27,10 @@ vi.mock('@/config', async () => {
   };
 });
 
-// Mock child_process
-vi.mock('node:child_process', () => {
+// Mock os
+vi.mock('node:os', () => {
   return {
-    exec: vi.fn(),
+    networkInterfaces: vi.fn(),
   };
 });
 
@@ -41,33 +41,80 @@ describe('IP Utility', () => {
 
   describe('getLocalIP', () => {
     it('should return the first non-loopback IP address', async () => {
-      (exec as any).mockImplementation(
-        (_command: string, callback: (error: any, stdout: any) => void) => {
-          callback(null, { stdout: '127.0.0.1 10.0.0.1' });
-        }
-      );
+      (networkInterfaces as any).mockReturnValue({
+        eth0: [
+          {
+            address: '127.0.0.1',
+            family: 'IPv4',
+            internal: true,
+          },
+          {
+            address: '10.0.0.1',
+            family: 'IPv4',
+            internal: false,
+          },
+        ],
+      });
 
       const ip = await getLocalIP();
       expect(ip).toBe('10.0.0.1');
     });
 
-    it('should return the first non-loopback IP address with multiple IPs', async () => {
-      (exec as any).mockImplementation(
-        (_command: string, callback: (error: any, stdout: any) => void) => {
-          callback(null, { stdout: '127.0.0.1 10.0.0.1 192.168.1.100' });
-        }
-      );
+    it('should return the first non-loopback IP address with multiple interfaces', async () => {
+      (networkInterfaces as any).mockReturnValue({
+        lo: [
+          {
+            address: '127.0.0.1',
+            family: 'IPv4',
+            internal: true,
+          },
+        ],
+        eth0: [
+          {
+            address: '10.0.0.1',
+            family: 'IPv4',
+            internal: false,
+          },
+        ],
+        wlan0: [
+          {
+            address: '192.168.1.100',
+            family: 'IPv4',
+            internal: false,
+          },
+        ],
+      });
 
       const ip = await getLocalIP();
       expect(ip).toBe('10.0.0.1');
+    });
+
+    it('should return loopback IP as fallback when no non-loopback IP is found', async () => {
+      (networkInterfaces as any).mockReturnValue({
+        lo: [
+          {
+            address: '127.0.0.1',
+            family: 'IPv4',
+            internal: true,
+          },
+        ],
+      });
+
+      const ip = await getLocalIP();
+      expect(ip).toBe('127.0.0.1');
+    });
+
+    it('should return empty string when no IP addresses are found', async () => {
+      (networkInterfaces as any).mockReturnValue({});
+
+      const ip = await getLocalIP();
+      expect(ip).toBe('');
     });
 
     it('should throw IPDetectionError on failure', async () => {
-      (exec as any).mockImplementation(
-        (_command: string, callback: (error: any, stdout: any) => void) => {
-          callback(new Error('Command failed'), { stdout: '' });
-        }
-      );
+      (networkInterfaces as any).mockImplementation(() => {
+        throw new Error('Network interfaces error');
+      });
 
       await expect(getLocalIP()).rejects.toThrow(IPDetectionError);
       expect(logger.error).toHaveBeenCalled();

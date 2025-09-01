@@ -13,11 +13,16 @@ COPY tsconfig.json ./
 RUN pnpm build
 
 # Production
-FROM gcr.io/distroless/nodejs18-debian11
+FROM node:18-alpine
 
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
-CMD ["dist/index.js"]
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+CMD ["node", "dist/index.js"]

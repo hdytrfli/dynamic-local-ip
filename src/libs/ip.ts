@@ -1,31 +1,42 @@
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import { logger } from '@/libs/logger';
-import { EMPTY, SPACE } from '@/libs/constant';
+import { networkInterfaces } from 'node:os';
+import { EMPTY } from '@/libs/constant';
 import { IPDetectionError } from '@/libs/exceptions';
-
-const execAsync = promisify(exec);
+import { logger } from '@/libs/logger';
 
 /**
  * Gets the local IP address of the machine
  */
 export const getLocalIP = async (): Promise<string> => {
   try {
-    const { stdout } = await execAsync('hostname --all-ip-addresses');
-    const ips = stdout.trim().split(SPACE);
+    const nets = networkInterfaces();
 
-    for (const ip of ips) {
-      if (ip && !ip.startsWith('127.')) {
-        return ip;
+    for (const interfaceName of Object.keys(nets)) {
+      const interfaces = nets[interfaceName];
+      if (!interfaces) continue;
+
+      for (const iface of interfaces) {
+        if (iface.internal || iface.family !== 'IPv4') continue;
+        if (iface.address && !iface.address.startsWith('127.')) {
+          return iface.address;
+        }
       }
     }
 
-    return ips[0] || EMPTY;
+    for (const interfaceName of Object.keys(nets)) {
+      const interfaces = nets[interfaceName];
+      if (!interfaces) continue;
+
+      for (const iface of interfaces) {
+        if (iface.family === 'IPv4') {
+          return iface.address || EMPTY;
+        }
+      }
+    }
+
+    return EMPTY;
   } catch (error: unknown) {
     logger.error({ error }, 'Error getting local IP');
-    if (error instanceof Error) {
-      throw new IPDetectionError(error.message);
-    }
+    if (error instanceof Error) throw new IPDetectionError(error.message);
     throw new IPDetectionError('Unknown error');
   }
 };
