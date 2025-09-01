@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  dynamic-local-ip:
+    image: ghcr.io/hdytrfli/dynamic-local-ip:latest
+    container_name: dynamic-local-ip
+    environment:
+      - CLOUDFLARE_EMAIL=your-email@example.com
+      - CLOUDFLARE_DOMAIN=your-domain.com
+      - CLOUDFLARE_ZONE_ID=your-zone-id
+      - CLOUDFLARE_API_KEY=your-api-key
+      - CLOUDFLARE_DNS_RECORD_ID=your-dns-record-id
+      - NTFY_TOPIC=your-ntfy-topic
+      - HOMEPAGE_URL=https://your-homepage.com
+      - MAX_ATTEMPTS=3
+      - COOLDOWN_PERIOD=900000
+      - DATA_FILE=data.json
+    volumes:
+      - path/to/data.json:/app/data.json
+    restart: unless-stopped

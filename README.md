@@ -46,12 +46,57 @@ The service runs every minute and:
 
 ## Docker
 
-You can also run this service with Docker:
+You can run this service with Docker in three ways:
+
+### Option 1: Using Docker Run (Build from source)
 
 ```bash
-docker build -t dynamic-ip-updater .
-docker run -d --env-file .env dynamic-ip-updater
+docker build -t dynamic-local-ip-updater .
+docker run -d --env-file .env dynamic-local-ip-updater
 ```
+
+### Option 2: Using Pre-built Image with Docker Run
+
+```bash
+docker run -d \
+  --name dynamic-local-ip \
+  --restart unless-stopped \
+  -e CLOUDFLARE_EMAIL=your-email@example.com \
+  -e CLOUDFLARE_DOMAIN=your-domain.com \
+  -e CLOUDFLARE_ZONE_ID=your-zone-id \
+  -e CLOUDFLARE_API_KEY=your-api-key \
+  -e CLOUDFLARE_DNS_RECORD_ID=your-dns-record-id \
+  -e NTFY_TOPIC=your-ntfy-topic \
+  -e HOMEPAGE_URL=https://your-homepage.com \
+  -e MAX_ATTEMPTS=3 \
+  -e COOLDOWN_PERIOD=900000 \
+  -e DATA_FILE=data.json \
+  -v /path/to/data.json:/app/data.json \
+  ghcr.io/hdytrfli/dynamic-local-ip:latest
+```
+
+### Option 3: Using Docker Compose (Recommended)
+
+```bash
+docker-compose up -d
+```
+
+The docker-compose setup includes:
+- Predefined container name (`dynamic-local-ip`)
+- Volume mount for data persistence
+- All required environment variables with example values
+- Automatic restart policy
+
+Before running with docker-compose:
+1. Edit `docker-compose.yml` with your actual values
+2. Run with docker-compose:
+   ```bash
+   docker-compose up -d
+   ```
+
+The data will be persisted in `data.json` which is mounted as a volume.
+
+Note: The pre-built Docker image is hosted on GitHub Container Registry and can be pulled directly without building from source.
 
 ## Configuration
 
@@ -68,7 +113,7 @@ The service can be configured using environment variables:
 | HOMEPAGE_URL | Homepage URL for notifications | Yes | - |
 | MAX_ATTEMPTS | Max retry attempts | No | 3 |
 | COOLDOWN_PERIOD | Cooldown period in ms | No | 900000 (15 min) |
-| DATA_FILE | Data persistence file | No | ip_updater_data.json |
+| DATA_FILE | Data persistence file | No | data.json |
 
 ## Development Workflow
 
@@ -81,29 +126,8 @@ pnpm format
 # Lint code
 pnpm lint
 
-# Check code (lint + format + other checks)
-pnpm check
-
 # Run tests
-pnpm test:run
-```
-
-## Version Management
-
-This project uses `bumpp` for version management. To bump the version and create a commit with a tag:
-
-```bash
-# Patch version bump (1.0.0 -> 1.0.1)
-pnpm version:bump:patch
-
-# Minor version bump (1.0.1 -> 1.1.0)
-pnpm version:bump:minor
-
-# Major version bump (1.1.0 -> 2.0.0)
-pnpm version:bump:major
-
-# Custom version bump with specific version and message
-pnpm version:bump
+pnpm test
 ```
 
 ## Docker Publishing
@@ -116,7 +140,7 @@ The project includes a comprehensive test suite using Vitest:
 
 ```bash
 # Run all tests
-pnpm test:run
+pnpm test
 
 # Run tests in watch mode
 pnpm test:watch
@@ -142,7 +166,7 @@ The service uses [ntfy.sh](https://ntfy.sh) for notifications. You can modify th
 
 ## Data Persistence
 
-The service stores state in `ip_updater_data.json` to track:
+The service stores state in `data.json` to track:
 - Current IP address
 - Last update time
 - Error status and count
