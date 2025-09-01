@@ -1,6 +1,6 @@
+import { NotificationError } from '@/libs/exceptions';
 import { logger } from '@/libs/logger';
 import { sendNotification } from '@/services/notification';
-import { NotificationError } from '@/libs/exceptions';
 
 // Mock the logger
 vi.mock('@/libs/logger', () => {
