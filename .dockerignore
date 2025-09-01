@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+README.md
+.env
+.env.example
+biome.json
+vitest.config.ts
+ip_updater_data.json
+.dockerignore
+Dockerfile
+.gitignore
+CHANGELOG.md
+LICENSE
