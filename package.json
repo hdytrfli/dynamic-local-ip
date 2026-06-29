@@ -1,13 +1,13 @@
 {
   "name": "dynamic-local-ip-updater",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "A service that automatically updates a Cloudflare DNS record with your local machine's IP address",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "type": "commonjs",
   "scripts": {
-    "build": "tsc && tsc-alias",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "build": "tsdown --no-config --entry src/index.ts --format cjs --outDir dist --clean --platform node --target node18 --sourcemap",
+    "start": "node dist/index.cjs",
+    "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
@@ -24,6 +24,7 @@
   "author": "hdytrfli",
   "license": "MIT",
   "dependencies": {
+    "cloudflare": "^6.5.0",
     "dotenv": "^17.2.1",
     "node-cron": "^4.2.1",
     "pino": "^9.9.0",
@@ -32,15 +33,17 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",
-    "@types/node": "^24.3.0",
+    "@types/node": "^26.0.1",
     "@types/node-cron": "^3.0.9",
     "@vitest/coverage-v8": "3.2.4",
     "bumpp": "^10.2.3",
     "ts-node": "^10.9.2",
-    "tsc-alias": "^1.8.16",
+    "tsdown": "^0.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=18.0.0"
   },

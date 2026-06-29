@@ -1,4 +1,5 @@
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
+import { dirname } from 'node:path';
 import { DATA_FILE } from '@/config';
 import { logger } from '@/libs/logger';
 import type { Data } from '@/libs/types';
@@ -33,12 +34,12 @@ export const readData = async (): Promise<Data> => {
  */
 export const writeData = async (data: Data): Promise<void> => {
   try {
+    const dir = dirname(DATA_FILE);
+    if (!existsSync(dir)) await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
   } catch (error: unknown) {
     logger.error({ error }, 'Error writing data file');
-    if (error instanceof Error) {
-      throw new DataError(error.message);
-    }
+    if (error instanceof Error) throw new DataError(error.message);
     throw new DataError('Unknown error');
   }
 };

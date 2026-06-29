@@ -27,7 +27,8 @@ build/
 .env.test
 .env.production
 
-# Data file
+# Data files
+data/
 ip_updater_data.json
 
 # IDE

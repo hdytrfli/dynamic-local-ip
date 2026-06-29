@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
 export const EnvSchema = z.object({
-  CLOUDFLARE_EMAIL: z.string().email(),
+  CLOUDFLARE_API_TOKEN: z.string().min(1),
   CLOUDFLARE_DOMAIN: z.string().min(1),
   CLOUDFLARE_ZONE_ID: z.string().min(1),
-  CLOUDFLARE_API_KEY: z.string().min(1),
   CLOUDFLARE_DNS_RECORD_ID: z.string().min(1),
 
   NTFY_TOPIC: z.string().min(1),
@@ -26,4 +25,4 @@ export const EnvSchema = z.object({
 });
 
 // Hardcoded data file path
-export const DATA_FILE = 'cache.json';
+export const DATA_FILE = 'data/cache.json';

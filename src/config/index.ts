@@ -1,16 +1,16 @@
 import { config } from 'dotenv';
 import { EnvSchema } from '@/config/schema';
 
-process.env.DOTENV_CONFIG_QUIET = 'true';
-config();
+config({
+  quiet: true
+});
 
 const env = EnvSchema.parse(process.env);
 
 export const {
-  CLOUDFLARE_EMAIL,
+  CLOUDFLARE_API_TOKEN,
   CLOUDFLARE_DOMAIN,
   CLOUDFLARE_ZONE_ID,
-  CLOUDFLARE_API_KEY,
   CLOUDFLARE_DNS_RECORD_ID,
   NTFY_TOPIC,
   HOMEPAGE_URL,

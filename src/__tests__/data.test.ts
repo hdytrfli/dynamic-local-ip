@@ -15,25 +15,24 @@ vi.mock('@/libs/logger', () => {
 
 // Mock the config values
 vi.mock('@/config', async () => {
+  process.env.CLOUDFLARE_API_TOKEN = 'test-api-token';
+  process.env.CLOUDFLARE_DOMAIN = 'test.example.com';
+  process.env.CLOUDFLARE_ZONE_ID = 'test-zone-id';
+  process.env.CLOUDFLARE_DNS_RECORD_ID = 'test-record-id';
+  process.env.NTFY_TOPIC = 'test-topic';
+  process.env.HOMEPAGE_URL = 'https://test.example.com';
   const actual = await vi.importActual('@/config');
-  return {
-    ...actual,
-    CLOUDFLARE_EMAIL: 'test@example.com',
-    CLOUDFLARE_DOMAIN: 'test.example.com',
-    CLOUDFLARE_ZONE_ID: 'test-zone-id',
-    CLOUDFLARE_API_KEY: 'test-api-key',
-    CLOUDFLARE_DNS_RECORD_ID: 'test-record-id',
-    NTFY_TOPIC: 'test-topic',
-    HOMEPAGE_URL: 'https://test.example.com',
-  };
+  return actual;
 });
 
 // Mock fs
 vi.mock('node:fs', () => {
   return {
+    existsSync: vi.fn(() => true),
     promises: {
       readFile: vi.fn(),
       writeFile: vi.fn(),
+      mkdir: vi.fn(),
     },
   };
 });
@@ -104,7 +103,7 @@ describe('Data Utility', () => {
 
       await writeData(testData);
       expect(fs.writeFile).toHaveBeenCalledWith(
-        'cache.json',
+        'data/cache.json',
         JSON.stringify(testData, null, 2)
       );
     });
