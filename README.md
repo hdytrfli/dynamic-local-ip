@@ -1,25 +1,27 @@
 # Dynamic Local IP Updater
 
-A service that automatically updates a Cloudflare DNS record with your local machine's IP address. Useful for home servers or devices with dynamic IPs.
+A service that automatically updates Cloudflare DNS A records with your local machine's LAN IP address. Designed for home servers whose local IP may change after a router reboot or DHCP renewal.
 
 ## Features
 
-- Automatically detects your local IP address
-- Updates Cloudflare DNS A records via the official Node.js SDK
-- Sends notifications via ntfy.sh
-- Persistent state tracking with automatic retry and cooldown
-- Docker support with data persistence
-- Configuration validation with Zod
+- Detects your local IPv4 address
+- Updates multiple Cloudflare DNS records simultaneously
+- CIDR range filtering — only update when IP is within a trusted subnet
+- Stability monitoring — debounces transient IP flaps before updating
+- Configurable retry with cooldown on failures
+- Push notifications via ntfy.sh
+- Docker support
 
 ## How It Works
 
-The service runs every minute and:
+The service runs every minute via `node-cron`:
 
-1. Gets your local IP address
-2. Compares it with the stored IP
-3. If different (or on previous error), updates the Cloudflare DNS record
-4. Sends a notification with the status
-5. Stores the result in `data/cache.json`
+1. Detects the current local IPv4 address
+2. Checks the IP against the optional CIDR range filter
+3. Applies stability monitoring — waits for the IP to remain stable for a configurable period before treating a change as real
+4. On error, retries with exponential-like backoff using attempt count and cooldown
+5. Updates all configured Cloudflare DNS records concurrently via `Promise.allSettled`
+6. Sends a notification on success or failure
 
 ## Setup
 
@@ -31,7 +33,6 @@ The service runs every minute and:
 3. Create a `.env` file (see `.env.example`):
    ```env
    CLOUDFLARE_API_TOKEN=your-api-token
-   CLOUDFLARE_DOMAIN=your-domain.com
    CLOUDFLARE_ZONE_ID=your-zone-id
    CLOUDFLARE_DNS_RECORD_ID=your-dns-record-id
    NTFY_TOPIC=your-ntfy-topic
@@ -44,38 +45,25 @@ The service runs every minute and:
 
 ## Docker
 
-### Using Docker Compose (Recommended)
-
 ```bash
 docker compose up -d
 ```
 
-Before running, edit `docker-compose.yml` with your actual Cloudflare credentials. The `data/` directory will be created and mounted for persistence.
-
-### Using Docker Run
-
-```bash
-docker build -t dynamic-local-ip-updater .
-docker run -d \
-  --name dynamic-local-ip \
-  --restart unless-stopped \
-  --env-file .env \
-  -v ./data:/app/data \
-  dynamic-local-ip-updater
-```
+Edit `docker-compose.yml` with your Cloudflare credentials before running.
 
 ## Configuration
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| CLOUDFLARE_API_TOKEN | Cloudflare API token | Yes | - |
-| CLOUDFLARE_DOMAIN | Domain to update (e.g. `home.example.com`) | Yes | - |
-| CLOUDFLARE_ZONE_ID | Cloudflare zone ID | Yes | - |
-| CLOUDFLARE_DNS_RECORD_ID | DNS record ID to update | Yes | - |
-| NTFY_TOPIC | ntfy.sh notification topic | Yes | - |
-| HOMEPAGE_URL | Homepage URL for notification action button | Yes | - |
-| MAX_ATTEMPTS | Max retry attempts before cooldown | No | 3 |
-| COOLDOWN_PERIOD | Cooldown period in ms after max attempts | No | 900000 (15 min) |
+| Variable                   | Description                                               | Required | Default           |
+| -------------------------- | --------------------------------------------------------- | -------- | ----------------- |
+| `CLOUDFLARE_API_TOKEN`     | Cloudflare API token                                      | Yes      | —                 |
+| `CLOUDFLARE_ZONE_ID`       | Cloudflare zone ID                                        | Yes      | —                 |
+| `CLOUDFLARE_DNS_RECORD_ID` | DNS record ID(s) — comma-separated for multiple           | Yes      | —                 |
+| `NTFY_TOPIC`               | ntfy.sh notification topic                                | Yes      | —                 |
+| `HOMEPAGE_URL`             | Homepage URL for the notification action button           | Yes      | —                 |
+| `IP_RANGE`                 | CIDR range to filter the local IP (e.g. `192.168.0.0/24`) | No       | —                 |
+| `STABILITY_PERIOD`         | Milliseconds to wait before trusting an IP change         | No       | `60000`           |
+| `MAX_ATTEMPTS`             | Max retry attempts before entering cooldown               | No       | `3`               |
+| `COOLDOWN_PERIOD`          | Cooldown period in ms after max attempts                  | No       | `900000` (15 min) |
 
 ## Development
 
@@ -92,23 +80,20 @@ pnpm format     # Format code
 
 ```
 src/
-├── config/       # Environment validation (Zod)
-├── libs/         # Shared utilities and types
-├── services/     # Cloudflare DNS and notification logic
-├── __tests__/    # Test suite (Vitest)
-└── index.ts      # Entry point
+├── config/          # Environment variable validation (Zod)
+├── libs/
+│   ├── exceptions   # Error classes
+│   ├── ip           # IP detection and CIDR matching
+│   ├── logger       # Pino logger
+│   ├── state        # App state interface and store singleton
+│   ├── storage      # Generic typed store
+│   └── utils        # Guard/predicate functions
+├── services/
+│   ├── cloudflare   # DNS record update via Cloudflare SDK
+│   └── notification # ntfy.sh push notifications
+├── __tests__/       # Test suite (Vitest)
+└── index.ts         # Entry point and orchestration
 ```
-
-## Data Persistence
-
-State is stored in `data/cache.json`:
-- Current IP address
-- Last update time
-- Error status and count
-
-## Notifications
-
-Uses [ntfy.sh](https://ntfy.sh) for push notifications. Customize in `src/services/notification/index.ts`.
 
 ## License
 

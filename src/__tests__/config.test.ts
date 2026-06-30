@@ -1,22 +1,34 @@
-import { EnvSchema } from '@/config/schema';
+import { EnvSchema } from '@/config';
 
 describe('Configuration Validation', () => {
-  it('should validate correct environment variables', () => {
-    const validEnv = {
+  it('should validate required fields', () => {
+    const env = {
       CLOUDFLARE_API_TOKEN: 'token123',
-      CLOUDFLARE_DOMAIN: 'example.com',
       CLOUDFLARE_ZONE_ID: 'zone123',
       CLOUDFLARE_DNS_RECORD_ID: 'record123',
       NTFY_TOPIC: 'test-topic',
       HOMEPAGE_URL: 'https://test.example.com',
     };
 
-    expect(() => EnvSchema.parse(validEnv)).not.toThrow();
+    const result = EnvSchema.parse(env);
+    expect(result.CLOUDFLARE_DNS_RECORD_ID).toEqual(['record123']);
+  });
+
+  it('should validate multiple comma-separated record IDs', () => {
+    const env = {
+      CLOUDFLARE_API_TOKEN: 'token123',
+      CLOUDFLARE_ZONE_ID: 'zone123',
+      CLOUDFLARE_DNS_RECORD_ID: 'record123, record456',
+      NTFY_TOPIC: 'test-topic',
+      HOMEPAGE_URL: 'https://test.example.com',
+    };
+
+    const result = EnvSchema.parse(env);
+    expect(result.CLOUDFLARE_DNS_RECORD_ID).toEqual(['record123', 'record456']);
   });
 
   it('should reject missing required fields', () => {
     const invalidEnv = {
-      // Missing all required fields
       NTFY_TOPIC: 'test-topic',
       HOMEPAGE_URL: 'https://test.example.com',
     };
@@ -24,29 +36,31 @@ describe('Configuration Validation', () => {
     expect(() => EnvSchema.parse(invalidEnv)).toThrow();
   });
 
-  it('should reject missing required fields', () => {
-    const invalidEnv = {
-      CLOUDFLARE_EMAIL: 'test@example.com',
-      // Missing other required fields
+  it('should accept optional IP_RANGE', () => {
+    const env = {
+      CLOUDFLARE_API_TOKEN: 'token123',
+      CLOUDFLARE_ZONE_ID: 'zone123',
+      CLOUDFLARE_DNS_RECORD_ID: 'record123',
+      NTFY_TOPIC: 'test-topic',
+      HOMEPAGE_URL: 'https://test.example.com',
+      IP_RANGE: '192.168.0.0/24',
     };
 
-    expect(() => EnvSchema.parse(invalidEnv)).toThrow();
+    const result = EnvSchema.parse(env);
+    expect(result.IP_RANGE).toBe('192.168.0.0/24');
   });
 
   it('should use default values for optional fields', () => {
     const env = {
       CLOUDFLARE_API_TOKEN: 'token123',
-      CLOUDFLARE_DOMAIN: 'example.com',
       CLOUDFLARE_ZONE_ID: 'zone123',
       CLOUDFLARE_DNS_RECORD_ID: 'record123',
       NTFY_TOPIC: 'test-topic',
       HOMEPAGE_URL: 'https://test.example.com',
-      // No optional fields provided
     };
 
     const result = EnvSchema.parse(env);
 
-    // Optional fields should have default values
     expect(Number(result.MAX_ATTEMPTS)).toBe(3);
     expect(Number(result.COOLDOWN_PERIOD)).toBe(15 * 60 * 1000);
   });

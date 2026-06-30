@@ -1,97 +1,115 @@
 import { schedule } from 'node-cron';
-import { COOLDOWN_PERIOD, MAX_ATTEMPTS } from '@/config';
-import { logger } from '@/libs/logger';
-import { readData, writeData } from '@/libs/data';
-import { getLocalIP } from '@/libs/ip';
-import type { Data } from '@/libs/types';
+import { log } from '@/libs/logger';
+import { getLocalIpAddress } from '@/libs/ip';
 import { updateCloudflare } from '@/services/cloudflare';
 import { sendNotification } from '@/services/notification';
+import { store } from '@/libs/state';
+import {
+  isUnchanged,
+  isOutOfRange,
+  shouldMonitor,
+  inCooldown,
+  isWaitingForStability,
+} from '@/libs/utils';
 
-/**
- * Creates a notification message based on the data
- */
-const createNotificationMessage = (data: Data): string => {
-  return data.is_error
-    ? `Failed to update IP. Attempts: ${data.attempt_count}. Last error: ${data.last_error}`
-    : `Current IP: ${data.current_ip}. Last updated: ${data.last_updated}`;
-};
+const cloudflareUpdate = async (ip: string) => {
+  const snapshot = store.snapshot();
 
-/**
- * Checks the current IP and updates Cloudflare if needed
- */
-const checkAndUpdateIP = async () => {
   try {
-    const currentIP = await getLocalIP();
-    const data = await readData();
+    const success = await updateCloudflare(ip);
 
-    if (currentIP !== data.current_ip || data.is_error) {
-      logger.info(
-        { currentIP, storedIP: data.current_ip, errorFlag: data.is_error },
-        'IP change detected or previous error'
-      );
-
-      try {
-        const success = await updateCloudflare(currentIP);
-
-        if (success) {
-          data.current_ip = currentIP;
-          data.last_updated = new Date().toISOString();
-          data.attempt_count = 0;
-          data.last_error = null;
-          data.is_error = false;
-        } else {
-          data.attempt_count += 1;
-          data.last_error = new Date().toISOString();
-          data.is_error = true;
-        }
-      } catch (error) {
-        data.attempt_count += 1;
-        data.last_error = new Date().toISOString();
-        data.is_error = true;
-        logger.error({ error }, 'Error updating Cloudflare');
-      }
-
-      await writeData(data);
-      await sendNotification(createNotificationMessage(data));
+    if (success) {
+      store.update({
+        currentIp: ip,
+        lastUpdated: new Date().toISOString(),
+        attemptCount: 0,
+        lastError: new Date().toISOString(),
+        isError: false,
+        pendingIp: null,
+      });
     } else {
-      logger.debug('No IP change detected');
+      store.update({
+        attemptCount: snapshot.attemptCount + 1,
+        lastError: new Date().toISOString(),
+        isError: true,
+      });
     }
-  } catch (error: unknown) {
-    logger.error({ error }, 'Error in IP check and update');
-    try {
-      let errorMessage = 'Unknown error';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      await sendNotification(`Application error: ${errorMessage}`);
-    } catch (notificationError) {
-      logger.error({ notificationError }, 'Failed to send error notification');
-    }
+
+    return success;
+  } catch (error) {
+    store.update({
+      attemptCount: snapshot.attemptCount + 1,
+      lastError: new Date().toISOString(),
+      isError: true,
+    });
+
+    throw error;
   }
 };
 
 schedule('* * * * *', async () => {
   try {
-    const data = await readData();
-    const now = new Date();
-    const parsed = data.last_error ? new Date(data.last_error) : null;
-    const diff = parsed && now.getTime() - parsed.getTime();
+    const ipAddress = await getLocalIpAddress();
+    const currentState = store.snapshot();
 
-    if (data.is_error) {
-      if (data.attempt_count >= MAX_ATTEMPTS) {
-        if (diff && diff < COOLDOWN_PERIOD) {
-          logger.info('In cooldown period, skipping update');
-          return;
-        }
-        data.attempt_count = 0;
-        await writeData(data);
-      }
+    if (isUnchanged(ipAddress, currentState)) {
+      return log.debug({
+        event: 'ip.unchanged',
+      });
     }
 
-    await checkAndUpdateIP();
-  } catch (error: unknown) {
-    logger.error({ error }, 'Error in cron job');
+    if (isOutOfRange(ipAddress)) {
+      store.set('pendingIp', null);
+      return log.info({
+        event: 'range.skip',
+        ip: ipAddress,
+      });
+    }
+
+    log.info({
+      event: 'ip.change',
+      ip: ipAddress,
+      from: currentState.currentIp,
+      error: currentState.isError,
+    });
+
+    if (inCooldown(currentState)) {
+      return log.info({
+        event: 'cooldown',
+      });
+    }
+
+    if (isWaitingForStability(ipAddress, currentState)) {
+      return log.info({
+        event: 'stable.wait',
+        ip: ipAddress,
+      });
+    }
+
+    if (shouldMonitor(ipAddress, currentState)) {
+      store.update({ pendingIp: ipAddress, pendingSince: Date.now() });
+      return log.info({
+        event: 'stable.start',
+        ip: ipAddress,
+      });
+    }
+
+    const success = await cloudflareUpdate(ipAddress);
+
+    log.info({
+      ip: ipAddress,
+      event: success ? 'cf.ok' : 'cf.fail',
+      attempts: store.get('attemptCount'),
+    });
+
+    if (success) await sendNotification('IP updated to ' + ipAddress);
+    else await sendNotification('Update failed ' + store.get('attemptCount'));
+  } catch (error) {
+    log.error({ event: 'error', error });
+    if (error instanceof Error) {
+      await sendNotification('Error: ' + error.message);
+    }
   }
 });
 
-logger.info('Cloudflare IP updater started');
+log.info({ event: 'start' });

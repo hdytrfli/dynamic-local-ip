@@ -1,75 +1,44 @@
 import { NotificationError } from '@/libs/exceptions';
-import { logger } from '@/libs/logger';
 import { sendNotification } from '@/services/notification';
 
-// Mock the logger
-vi.mock('@/libs/logger', () => {
-  return {
-    logger: {
-      info: vi.fn(),
-      error: vi.fn(),
-    },
-  };
-});
-
-// Mock the config values
 vi.mock('@/config', async () => {
   process.env.CLOUDFLARE_API_TOKEN = 'test-api-token';
-  process.env.CLOUDFLARE_DOMAIN = 'test.example.com';
   process.env.CLOUDFLARE_ZONE_ID = 'test-zone-id';
   process.env.CLOUDFLARE_DNS_RECORD_ID = 'test-record-id';
   process.env.NTFY_TOPIC = 'test-topic';
   process.env.HOMEPAGE_URL = 'https://test.example.com';
-  const actual = await vi.importActual('@/config');
-  return actual;
+  return await vi.importActual('@/config');
 });
 
-// Mock fetch
 global.fetch = vi.fn();
 
-describe('Notification Service', () => {
+describe('sendNotification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('sendNotification', () => {
-    it('should send notification successfully', async () => {
-      (fetch as vi.Mock).mockResolvedValue({
-        ok: true,
-      });
-
-      const message = 'Test notification';
-      await sendNotification(message);
-
-      expect(fetch).toHaveBeenCalledWith('https://ntfy.sh', {
-        method: 'POST',
-        body: JSON.stringify({
-          topic: 'test-topic',
-          message: message,
-          actions: [
-            {
-              action: 'view',
-              label: 'Open Homepage',
-              url: 'https://test.example.com',
-              clear: true,
-            },
-          ],
-        }),
-      });
-      expect(logger.info).toHaveBeenCalledWith(
-        { message },
-        'Notification sent'
-      );
+  it('sends notification successfully', async () => {
+    (fetch as vi.Mock).mockResolvedValue({ ok: true });
+    await sendNotification('Test');
+    expect(fetch).toHaveBeenCalledWith('https://ntfy.sh', {
+      method: 'POST',
+      body: JSON.stringify({
+        topic: 'test-topic',
+        message: 'Test',
+        actions: [
+          {
+            action: 'view',
+            label: 'Open Homepage',
+            url: 'https://test.example.com',
+            clear: true,
+          },
+        ],
+      }),
     });
+  });
 
-    it('should throw NotificationError on network errors', async () => {
-      (fetch as vi.Mock).mockRejectedValue(new Error('Network error'));
-
-      const message = 'Test notification';
-      await expect(sendNotification(message)).rejects.toThrow(
-        NotificationError
-      );
-      expect(logger.error).toHaveBeenCalled();
-    });
+  it('throws NotificationError on network error', async () => {
+    (fetch as vi.Mock).mockRejectedValue(new Error('Network error'));
+    await expect(sendNotification('Test')).rejects.toThrow(NotificationError);
   });
 });
