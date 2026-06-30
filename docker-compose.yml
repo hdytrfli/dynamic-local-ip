@@ -3,12 +3,18 @@ services:
     image: ghcr.io/hdytrfli/dynamic-local-ip:latest
     container_name: dynamic-local-ip
     environment:
+      # cloudflare
       - CLOUDFLARE_API_TOKEN=your-api-token
-      - CLOUDFLARE_DOMAIN=your-domain.com
       - CLOUDFLARE_ZONE_ID=your-zone-id
-      - CLOUDFLARE_DNS_RECORD_ID=your-dns-record-id
+      - CLOUDFLARE_DNS_RECORD_ID=your-dns-record-id1,your-dns-record-id2
+
+      # notification
       - NTFY_TOPIC=your-ntfy-topic
       - HOMEPAGE_URL=https://your-homepage.com
-    volumes:
-      - ./data:/app/data
+
+      # optional
+      - IP_RANGE=192.168.0.0/24
+      - STABILITY_PERIOD=60000
+      - COOLDOWN_PERIOD=900000
+      - MAX_ATTEMPTS=3
     restart: unless-stopped
