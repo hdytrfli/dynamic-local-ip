@@ -1,6 +1,6 @@
 import { networkInterfaces } from 'node:os';
-import { getLocalIpAddress } from '@/libs/ip';
 import { IPDetectionError } from '@/libs/exceptions';
+import { getLocalIpAddress } from '@/libs/ip';
 
 vi.mock('node:os', () => ({ networkInterfaces: vi.fn() }));
 

@@ -1,22 +1,24 @@
 import { schedule } from 'node-cron';
-import { log } from '@/libs/logger';
 import { getLocalIpAddress } from '@/libs/ip';
-import { updateCloudflare } from '@/services/cloudflare';
-import { sendNotification } from '@/services/notification';
+import { log } from '@/libs/logger';
 import { store } from '@/libs/state';
 import {
-  isUnchanged,
-  isOutOfRange,
-  shouldMonitor,
   inCooldown,
+  isOutOfRange,
+  isUnchanged,
   isWaitingForStability,
+  shouldMonitor,
 } from '@/libs/utils';
+import { loadRecordNames, updateCloudflare } from '@/services/cloudflare';
+import { sendNotification } from '@/services/notification';
+
+let recordNames: string[] = [];
 
 const cloudflareUpdate = async (ip: string) => {
   const snapshot = store.snapshot();
 
   try {
-    const success = await updateCloudflare(ip);
+    const success = await updateCloudflare(ip, recordNames);
 
     if (success) {
       store.update({
@@ -48,6 +50,8 @@ const cloudflareUpdate = async (ip: string) => {
 };
 
 schedule('* * * * *', async () => {
+  if (recordNames.length === 0) recordNames = await loadRecordNames();
+
   try {
     const ipAddress = await getLocalIpAddress();
     const currentState = store.snapshot();
@@ -60,15 +64,16 @@ schedule('* * * * *', async () => {
 
     if (isOutOfRange(ipAddress)) {
       store.set('pendingIp', null);
+
       return log.info({
         event: 'range.skip',
-        ip: ipAddress,
+        ipAddress: ipAddress,
       });
     }
 
     log.info({
       event: 'ip.change',
-      ip: ipAddress,
+      ipAddress: ipAddress,
       from: currentState.currentIp,
       error: currentState.isError,
     });
@@ -82,23 +87,26 @@ schedule('* * * * *', async () => {
     if (isWaitingForStability(ipAddress, currentState)) {
       return log.info({
         event: 'stable.wait',
-        ip: ipAddress,
+        ipAddress: ipAddress,
       });
     }
 
     if (shouldMonitor(ipAddress, currentState)) {
-      store.update({ pendingIp: ipAddress, pendingSince: Date.now() });
+      store.update({
+        pendingIp: ipAddress,
+        pendingSince: Date.now(),
+      });
+
       return log.info({
         event: 'stable.start',
-        ip: ipAddress,
+        ipAddress: ipAddress,
       });
     }
 
     const success = await cloudflareUpdate(ipAddress);
-
     log.info({
-      ip: ipAddress,
-      event: success ? 'cf.ok' : 'cf.fail',
+      ipAddress: ipAddress,
+      event: success ? 'cloudflare.ok' : 'cloudflare.fail',
       attempts: store.get('attemptCount'),
     });
 

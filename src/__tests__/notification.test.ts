@@ -10,17 +10,18 @@ vi.mock('@/config', async () => {
   return await vi.importActual('@/config');
 });
 
-global.fetch = vi.fn();
-
 describe('sendNotification', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('sends notification successfully', async () => {
-    (fetch as vi.Mock).mockResolvedValue({ ok: true });
+    const mock = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: true } as any);
+
     await sendNotification('Test');
-    expect(fetch).toHaveBeenCalledWith('https://ntfy.sh', {
+    expect(mock).toHaveBeenCalledWith('https://ntfy.sh', {
       method: 'POST',
       body: JSON.stringify({
         topic: 'test-topic',
@@ -38,7 +39,7 @@ describe('sendNotification', () => {
   });
 
   it('throws NotificationError on network error', async () => {
-    (fetch as vi.Mock).mockRejectedValue(new Error('Network error'));
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
     await expect(sendNotification('Test')).rejects.toThrow(NotificationError);
   });
 });
